@@ -1,0 +1,39 @@
+{
+  "name": "backend",
+  "version": "1.0.0",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "dev": "npx nodemon server.js",
+    "mcp": "node src/mcp/server.js"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "module",
+  "description": "",
+  "dependencies": {
+    "@langchain/core": "^1.1.40",
+    "@langchain/google-genai": "^2.1.26",
+    "@langchain/mistralai": "^1.0.7",
+    "@modelcontextprotocol/sdk": "^1.29.0",
+    "@tavily/core": "^0.7.2",
+    "bcrypt": "^6.0.0",
+    "cookie-parser": "^1.4.7",
+    "cors": "^2.8.6",
+    "dotenv": "^17.3.1",
+    "express": "^5.2.1",
+    "express-rate-limit": "^8.4.1",
+    "express-validator": "^7.3.1",
+    "google-auth-library": "^10.6.2",
+    "jsonwebtoken": "^9.0.3",
+    "langchain": "^1.2.37",
+    "mongoose": "^9.3.2",
+    "morgan": "^1.10.1",
+    "multer": "^2.1.1",
+    "nodemailer": "^8.0.4",
+    "pdf-parse": "^2.4.5",
+    "socket.io": "^4.8.3",
+    "zod": "^4.3.6"
+  }
+}
