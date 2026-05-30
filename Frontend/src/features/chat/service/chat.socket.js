@@ -1,5 +1,7 @@
 import { io } from "socket.io-client";
 
+const BASE_URL = import.meta.env.VITE_BACKEND_URL || "http://localhost:3000";
+
 let socket = null;
 
 export const initializeSocketConnection = () => {
@@ -10,7 +12,7 @@ export const initializeSocketConnection = () => {
     return socket;
   }
 
-  socket = io("http://localhost:3000", {
+  socket = io(BASE_URL, {
     withCredentials: true,
   });
 

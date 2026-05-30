@@ -115,7 +115,7 @@ export const html = `
         You can now access your account securely.
     </p>
 
-    <a href="http://localhost:3000/api/auth/login" class="button">
+    <a href="/login" class="button">
         Go to Login →
     </a>
 </div>
@@ -241,7 +241,7 @@ export const alreadyVerifiedHtml = `
         You can safely close this page or log in to your account.
     </p>
 
-    <a href="http://localhost:3000/api/auth/login" class="button">
+    <a href="/login" class="button">
         Go to Login →
     </a>
 </div>
