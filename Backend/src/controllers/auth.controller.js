@@ -12,6 +12,7 @@ export async function googleLogin(req, res) {
   try {
     const { token, avatar: avatarHint } = req.body;
 
+    console.log("CLIENT ID:", process.env.GOOGLE_CLIENT_ID);
     // verify token with google
     const ticket = await client.verifyIdToken({
       idToken: token,
