@@ -30,6 +30,12 @@ const GoogleLogin = () => {
 
     const avatar = getProfilePictureFromCredential(token);
 
+    const payload = JSON.parse(
+      atob(token.split(".")[1])
+    );
+    console.log("TOKEN AUD:", payload.aud);
+    console.log("CLIENT ID USED:", import.meta.env.VITE_GOOGLE_CLIENT_ID);
+
     const isLoggedIn = await handleGoogleLogin({ token, avatar });
     if (isLoggedIn) {
       navigate("/");
