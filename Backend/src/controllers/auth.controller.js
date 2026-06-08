@@ -20,6 +20,9 @@ export async function googleLogin(req, res) {
     console.log("EXPECTED:", process.env.GOOGLE_CLIENT_ID);
 
     // verify token with google
+    console.log("CLIENT INSTANCE ID:", client._clientId);
+    console.log("ENV CLIENT ID:", process.env.GOOGLE_CLIENT_ID);
+
     const ticket = await client.verifyIdToken({
       idToken: token,
       audience: process.env.GOOGLE_CLIENT_ID,
