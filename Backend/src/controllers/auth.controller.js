@@ -19,13 +19,15 @@ export async function googleLogin(req, res) {
     console.log("TOKEN AZP:", payloadPart.azp);
     console.log("EXPECTED:", process.env.GOOGLE_CLIENT_ID);
 
-    // verify token with google
+    // verify token with google (audience removed temporarily for debugging)
     console.log("CLIENT INSTANCE ID:", client._clientId);
     console.log("ENV CLIENT ID:", process.env.GOOGLE_CLIENT_ID);
+    console.log("TOKEN LENGTH:", token.length);
+    console.log("TOKEN START:", token.substring(0, 50));
+    console.log("AUDIENCE PARAM:", process.env.GOOGLE_CLIENT_ID);
 
     const ticket = await client.verifyIdToken({
       idToken: token,
-      audience: process.env.GOOGLE_CLIENT_ID,
     });
 
     const payload = ticket.getPayload();
