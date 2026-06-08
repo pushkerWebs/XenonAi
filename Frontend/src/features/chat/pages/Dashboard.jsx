@@ -260,6 +260,7 @@ const Dashboard = () => {
   const [chatInput, setChatInput] = useState('');
   const [attachedFiles, setAttachedFiles] = useState([]);
   const [isSidebarOpen, setIsSidebarOpen] = useState(window.innerWidth >= 768);
+  const _isMobileInit = window.innerWidth < 768;
   const [isDarkMode, setIsDarkMode] = useState(true);
   const [showUserMenu, setShowUserMenu] = useState(false);
   const [openChatMenuId, setOpenChatMenuId] = useState(null);
@@ -273,7 +274,7 @@ const Dashboard = () => {
   const [selectedModel, setSelectedModel] = useState('gemini-flash-latest');
   const [showDeleteChatDropdown, setShowDeleteChatDropdown] = useState(false);
   const [isAtBottom, setIsAtBottom] = useState(true);
-  const [isMobileScreen, setIsMobileScreen] = useState(false);
+  const [isMobileScreen, setIsMobileScreen] = useState(_isMobileInit);
   const user = useSelector((state) => state.auth.user);
   const chats = useSelector((state) => state.chat.chats);
   const currentChatId = useSelector((state) => state.chat.currentChatId);
@@ -940,16 +941,16 @@ const scrollToLatestMessage = useCallback(() => {
 
       <div
         className="w-full h-full flex flex-col transition-all duration-300"
-        style={{ marginLeft: isSidebarOpen ? SIDEBAR_W : 0 }}
+        style={{ marginLeft: !isMobileScreen && isSidebarOpen ? SIDEBAR_W : 0 }}
       >
         <main className="flex flex-col flex-1 overflow-hidden">
           {currentMessages.length === 0 ? (
-            <div className="w-full flex flex-col items-center justify-center flex-1 px-4 pt-16 overflow-y-auto">
+            <div className="w-full flex flex-col items-center justify-center flex-1 px-4 pt-16 pb-4 overflow-y-auto">
               <div className="w-full max-w-2xl text-center">
                 <Motion.h1
                   initial={{ opacity: 0, y: -10 }}
                   animate={{ opacity: 1, y: 0 }}
-                  className={`text-4xl font-bold ${theme.textPrimary} tracking-tight mb-4`}
+                  className={`text-3xl sm:text-4xl font-bold ${theme.textPrimary} tracking-tight mb-4`}
                 >
                   What can I help with?
                 </Motion.h1>
@@ -957,7 +958,7 @@ const scrollToLatestMessage = useCallback(() => {
                   initial={{ opacity: 0 }}
                   animate={{ opacity: 1 }}
                   transition={{ delay: 0.2 }}
-                  className={`${isDarkMode ? 'text-gray-500' : 'text-gray-500'} text-sm mb-8 max-w-md mx-auto`}
+                  className={`${isDarkMode ? 'text-gray-500' : 'text-gray-500'} text-sm mb-8 max-w-md mx-auto px-2`}
                 >
                   Intelligent assistant for specialized knowledge and problem-solving.
                 </Motion.p>
@@ -994,32 +995,14 @@ const scrollToLatestMessage = useCallback(() => {
                     </div>
                   )}
                   <div
-                    className={`relative flex items-center ${theme.inputBg} ${theme.inputBorder} rounded-2xl ${isDarkMode ? 'focus-within:shadow-[0_0_0_2px_rgba(255,255,255,0.05)]' : 'focus-within:shadow-[0_0_0_3px_rgba(236,72,153,0.2)]'} transition-all duration-200`}
+                    className={`relative ${theme.inputBg} ${theme.inputBorder} rounded-2xl ${isDarkMode ? 'focus-within:shadow-[0_0_0_2px_rgba(255,255,255,0.05)]' : 'focus-within:shadow-[0_0_0_3px_rgba(236,72,153,0.2)]'} transition-all duration-200`}
                   >
-                    <button
-                      type="button"
-                      onClick={() => fileInputRef.current?.click()}
-                      className={`pl-4 shrink-0 transition-colors ${attachedFiles.length > 0 ? (isDarkMode ? 'text-gray-400' : 'text-gray-600') : isDarkMode ? 'text-gray-600 hover:text-gray-400' : 'text-gray-400 hover:text-gray-600'
-                        }`}
-                    >
-                      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
-                        <path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66L9.41 17.41a2 2 0 0 1-2.83-2.83l8.49-8.48" />
-                      </svg>
-                    </button>
-                    <input
-                      ref={inputRef}
-                      type="text"
-                      value={chatInput}
-                      onChange={(e) => setChatInput(e.target.value)}
-                      onKeyDown={handleInputKeyDown}
-                      placeholder={attachedFiles.length > 0 ? 'Ask about your file(s), or just press Enter…' : 'Ask anything...'}
-                      className={`flex-1 py-3 px-2 bg-transparent rounded-2xl outline-none ${isDarkMode ? 'text-white placeholder:text-gray-600' : 'text-black placeholder:text-gray-400'} text-sm`}
-                    />
-                    <div className="px-2">
+                    {/* Mobile: model selector row (only visible on xs, hidden on sm+) */}
+                    <div className="flex items-center justify-end px-3 pt-2 sm:hidden">
                       <select
                         value={selectedModel}
                         onChange={(e) => setSelectedModel(e.target.value)}
-                        className={`w-36 rounded-lg border ${theme.borderColor} bg-transparent px-2 py-1 text-xs ${theme.textPrimary} outline-none focus:ring-1 focus:ring-gray-500`}
+                        className={`rounded-lg border ${theme.borderColor} bg-transparent px-2 py-1 text-xs ${theme.textPrimary} outline-none max-w-[140px]`}
                       >
                         {MODEL_OPTIONS.map((option) => (
                           <option key={option.value} value={option.value} className={isDarkMode ? 'bg-black text-white' : 'bg-white text-black'}>
@@ -1028,8 +1011,43 @@ const scrollToLatestMessage = useCallback(() => {
                         ))}
                       </select>
                     </div>
-                    <div className="pr-2" onClick={(e) => e.stopPropagation()}>
-                      {renderComposerActionButton()}
+                    {/* Input row */}
+                    <div className="flex items-center">
+                      <button
+                        type="button"
+                        onClick={() => fileInputRef.current?.click()}
+                        className={`pl-4 shrink-0 transition-colors ${attachedFiles.length > 0 ? (isDarkMode ? 'text-gray-400' : 'text-gray-600') : isDarkMode ? 'text-gray-600 hover:text-gray-400' : 'text-gray-400 hover:text-gray-600'}`}
+                      >
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
+                          <path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66L9.41 17.41a2 2 0 0 1-2.83-2.83l8.49-8.48" />
+                        </svg>
+                      </button>
+                      <input
+                        ref={inputRef}
+                        type="text"
+                        value={chatInput}
+                        onChange={(e) => setChatInput(e.target.value)}
+                        onKeyDown={handleInputKeyDown}
+                        placeholder={attachedFiles.length > 0 ? 'Ask about your file(s), or just press Enter…' : 'Ask anything...'}
+                        className={`flex-1 py-3 px-2 bg-transparent rounded-2xl outline-none ${isDarkMode ? 'text-white placeholder:text-gray-600' : 'text-black placeholder:text-gray-400'} text-sm min-w-0`}
+                      />
+                      {/* Desktop: model selector inline (hidden on mobile) */}
+                      <div className="hidden sm:flex px-2 shrink-0">
+                        <select
+                          value={selectedModel}
+                          onChange={(e) => setSelectedModel(e.target.value)}
+                          className={`w-36 rounded-lg border ${theme.borderColor} bg-transparent px-2 py-1 text-xs ${theme.textPrimary} outline-none focus:ring-1 focus:ring-gray-500`}
+                        >
+                          {MODEL_OPTIONS.map((option) => (
+                            <option key={option.value} value={option.value} className={isDarkMode ? 'bg-black text-white' : 'bg-white text-black'}>
+                              {option.label}
+                            </option>
+                          ))}
+                        </select>
+                      </div>
+                      <div className="pr-3 shrink-0" onClick={(e) => e.stopPropagation()}>
+                        {renderComposerActionButton()}
+                      </div>
                     </div>
                   </div>
                   <p className={`mt-2 text-xs text-center ${isDarkMode ? 'text-gray-600' : 'text-violet-400'}`}>
@@ -1239,8 +1257,8 @@ const scrollToLatestMessage = useCallback(() => {
 
         {currentMessages.length > 0 && (
           <div
-            className={`fixed bottom-0 left-0 right-0 z-10 px-2 pb-2 pt-1 backdrop-blur-sm transition-all duration-300 ${isSidebarOpen ? 'md:ml-60' : 'ml-0'} ${isDarkMode ? 'bg-black/80 shadow-[0_-8px_30px_rgba(0,0,0,0.5)]' : 'bg-white/80 shadow-[0_-8px_30px_rgba(0,0,0,0.05)]'
-              }`}
+            className={`fixed bottom-0 right-0 z-10 px-2 pb-2 pt-1 backdrop-blur-sm transition-all duration-300 ${isDarkMode ? 'bg-black/80 shadow-[0_-8px_30px_rgba(0,0,0,0.5)]' : 'bg-white/80 shadow-[0_-8px_30px_rgba(0,0,0,0.05)]'}`}
+            style={{ left: !isMobileScreen && isSidebarOpen ? SIDEBAR_W : 0 }}
           >
             <div className="max-w-3xl mx-auto">
 
@@ -1306,33 +1324,14 @@ const scrollToLatestMessage = useCallback(() => {
                   </div>
                 )}
                 <div
-                  className={`relative flex items-center ${theme.inputBg} ${theme.inputBorder} rounded-2xl ${isDarkMode ? 'focus-within:shadow-[0_0_0_2px_rgba(255,255,255,0.05)]' : 'focus-within:shadow-[0_0_0_3px_rgba(236,72,153,0.2)]'} transition-all duration-200`}
+                  className={`relative ${theme.inputBg} ${theme.inputBorder} rounded-2xl ${isDarkMode ? 'focus-within:shadow-[0_0_0_2px_rgba(255,255,255,0.05)]' : 'focus-within:shadow-[0_0_0_3px_rgba(236,72,153,0.2)]'} transition-all duration-200`}
                 >
-                  <button
-                    type="button"
-                    onClick={() => fileInputRef.current?.click()}
-                    className={`pl-4 shrink-0 transition-colors ${attachedFiles.length > 0 ? (isDarkMode ? 'text-gray-400' : 'text-gray-600') : isDarkMode ? 'text-gray-600 hover:text-gray-400' : 'text-gray-400 hover:text-gray-600'
-                      }`}
-                  >
-                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
-                      <path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66L9.41 17.41a2 2 0 0 1-2.83-2.83l8.49-8.48" />
-                    </svg>
-                  </button>
-                  <input
-                    ref={inputRef}
-                    autoFocus
-                    type="text"
-                    value={chatInput}
-                    onChange={(e) => setChatInput(e.target.value)}
-                    onKeyDown={handleInputKeyDown}
-                    placeholder={attachedFiles.length > 0 ? 'Ask about your file(s), or just press Enter…' : 'Ask anything...'}
-                    className={`flex-1 py-3 px-2 bg-transparent rounded-2xl outline-none ${isDarkMode ? 'text-white placeholder:text-gray-600' : 'text-black placeholder:text-gray-400'} text-sm`}
-                  />
-                  <div className="px-2">
+                  {/* Mobile: model selector row (only visible on xs, hidden on sm+) */}
+                  <div className="flex items-center justify-end px-3 pt-2 sm:hidden">
                     <select
                       value={selectedModel}
                       onChange={(e) => setSelectedModel(e.target.value)}
-                      className={`w-36 rounded-lg border ${theme.borderColor} bg-transparent px-2 py-1 text-xs ${theme.textPrimary} outline-none focus:ring-1 focus:ring-gray-500`}
+                      className={`rounded-lg border ${theme.borderColor} bg-transparent px-2 py-1 text-xs ${theme.textPrimary} outline-none max-w-[140px]`}
                     >
                       {MODEL_OPTIONS.map((option) => (
                         <option key={option.value} value={option.value} className={isDarkMode ? 'bg-black text-white' : 'bg-white text-black'}>
@@ -1341,7 +1340,43 @@ const scrollToLatestMessage = useCallback(() => {
                       ))}
                     </select>
                   </div>
-                  <div className="pr-2">{renderComposerActionButton()}</div>
+                  {/* Input row */}
+                  <div className="flex items-center">
+                    <button
+                      type="button"
+                      onClick={() => fileInputRef.current?.click()}
+                      className={`pl-4 shrink-0 transition-colors ${attachedFiles.length > 0 ? (isDarkMode ? 'text-gray-400' : 'text-gray-600') : isDarkMode ? 'text-gray-600 hover:text-gray-400' : 'text-gray-400 hover:text-gray-600'}`}
+                    >
+                      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
+                        <path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66L9.41 17.41a2 2 0 0 1-2.83-2.83l8.49-8.48" />
+                      </svg>
+                    </button>
+                    <input
+                      ref={inputRef}
+                      autoFocus
+                      type="text"
+                      value={chatInput}
+                      onChange={(e) => setChatInput(e.target.value)}
+                      onKeyDown={handleInputKeyDown}
+                      placeholder={attachedFiles.length > 0 ? 'Ask about your file(s), or just press Enter…' : 'Ask anything...'}
+                      className={`flex-1 py-3 px-2 bg-transparent rounded-2xl outline-none ${isDarkMode ? 'text-white placeholder:text-gray-600' : 'text-black placeholder:text-gray-400'} text-sm min-w-0`}
+                    />
+                    {/* Desktop: model selector inline (hidden on mobile) */}
+                    <div className="hidden sm:flex px-2 shrink-0">
+                      <select
+                        value={selectedModel}
+                        onChange={(e) => setSelectedModel(e.target.value)}
+                        className={`w-36 rounded-lg border ${theme.borderColor} bg-transparent px-2 py-1 text-xs ${theme.textPrimary} outline-none focus:ring-1 focus:ring-gray-500`}
+                      >
+                        {MODEL_OPTIONS.map((option) => (
+                          <option key={option.value} value={option.value} className={isDarkMode ? 'bg-black text-white' : 'bg-white text-black'}>
+                            {option.label}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                    <div className="pr-3 shrink-0">{renderComposerActionButton()}</div>
+                  </div>
                 </div>
                 <p className={`mt-2 text-xs text-center ${isDarkMode ? 'text-gray-600' : 'text-violet-400'}`}>
                   <span className="font-semibold">Xenon</span> · Can make mistakes

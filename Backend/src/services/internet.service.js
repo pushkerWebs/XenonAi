@@ -1,10 +1,17 @@
 import { tavily as Tavily } from "@tavily/core";
 
-const tavily = process.env.TAVILY_API_KEY
+console.log("RAW TAVILY:", JSON.stringify(process.env.TAVILY_API_KEY));
+console.log("TRIMMED TAVILY:", JSON.stringify((process.env.TAVILY_API_KEY || "").trim()));
+console.log("LENGTH:", (process.env.TAVILY_API_KEY || "").trim().length);
+
+const tavilyKey = (process.env.TAVILY_API_KEY || "").trim();
+
+const tavily = tavilyKey
   ? Tavily({
-      apiKey: process.env.TAVILY_API_KEY,
+      apiKey: tavilyKey,
     })
   : null;
+
 
 const SEARCH_TIMEOUT_MS = Number(process.env.SEARCH_TIMEOUT_MS || 8000);
 
