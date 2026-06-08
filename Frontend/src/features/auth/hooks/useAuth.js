@@ -1,7 +1,7 @@
 import { useCallback } from "react";
 import { useDispatch } from "react-redux";
 import { register, login, getMe, loginWithGoogle, logout } from "../service/auth.api";
-import { setUser, setLoading, setError } from "../auth.slice";
+import { setUser, setLoading, setIsLoggingOut, setError } from "../auth.slice";
 
 
 const persistUser = (user) => {
@@ -102,6 +102,7 @@ export function useAuth() {
 
     const handleLogout = useCallback(async () => {
         try {
+            dispatch(setIsLoggingOut(true))
             dispatch(setLoading(true))
             dispatch(setError(null))
             await logout()
@@ -113,6 +114,7 @@ export function useAuth() {
             return false
         } finally {
             dispatch(setLoading(false))
+            dispatch(setIsLoggingOut(false))
         }
     }, [dispatch])
 

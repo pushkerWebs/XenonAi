@@ -27,6 +27,9 @@ const authSlice = createSlice({
     // Without this, users with a stale localStorage entry but expired
     // cookie would see an empty dashboard before being kicked to login.
     loading: true,
+    // Distinct flag so Protected can show the splash screen specifically
+    // during logout, not during every initial session-check load.
+    isLoggingOut: false,
     error: null,
   },
   //reducer => pure function that update state based on action
@@ -43,6 +46,10 @@ const authSlice = createSlice({
       state.loading = action.payload; //update loading state with payload data
     },
 
+    setIsLoggingOut: (state, action) => {
+      state.isLoggingOut = action.payload;
+    },
+
     setError: (state, action) => {
       state.error = action.payload;
     },
@@ -50,6 +57,6 @@ const authSlice = createSlice({
 });
 
 
-export const { setUser , setLoading , setError} = authSlice.actions 
+export const { setUser , setLoading , setIsLoggingOut, setError} = authSlice.actions 
 
 export default authSlice.reducer
