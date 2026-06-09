@@ -1,15 +1,20 @@
 import { RouterProvider } from "react-router"
 import { router } from "./app.routes"
-import { useEffect, useState, useCallback } from "react"
+import { useEffect, useCallback } from "react"
 import { useAuth } from "../features/auth/hooks/useAuth"
 import { motion, AnimatePresence } from "framer-motion"
 import SplashScreen from "./SplashScreen"
+import { useState } from "react"
 
 
 function App() {
 
   const { handleGetMe } = useAuth()
-  const [showSplash, setShowSplash] = useState(false)
+
+  // Show the branded splash on every page load / visit.
+  // Previously this was gated by sessionStorage so it only played once —
+  // now it always plays, matching the user's intent.
+  const [showSplash, setShowSplash] = useState(true)
 
   // Always verify session on app start — even if localStorage has a user.
   // This ensures stale/expired cookies are caught and the user is not
@@ -18,16 +23,8 @@ function App() {
     handleGetMe()
   }, [handleGetMe])
 
-  useEffect(() => {
-    const hasSeenSplash = sessionStorage.getItem("xenonSplashSeen") === "1"
-    if (!hasSeenSplash) {
-      setShowSplash(true)
-    }
-  }, [])
-
   const handleSplashDone = useCallback(() => {
     setShowSplash(false)
-    sessionStorage.setItem("xenonSplashSeen", "1")
   }, [])
 
   return (

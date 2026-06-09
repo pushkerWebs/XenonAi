@@ -1,47 +1,22 @@
 import React from 'react'
 import { useSelector } from 'react-redux'
 import { Navigate } from 'react-router'
-import SplashScreen from '../../../app/SplashScreen'
+import LoadingScreen from '../../../app/LoadingScreen'
 
 const Protected = ({ children }) => {
   const user = useSelector(state => state.auth.user)
   const loading = useSelector(state => state.auth.loading)
   const isLoggingOut = useSelector(state => state.auth.isLoggingOut)
 
-  // Logout in progress → show the same branded splash screen used at startup.
-  // This replaces the blank white flash that appeared while the logout API
-  // call was in-flight and Protected re-rendered with loading=true.
+  // Logout in progress — show branded loading screen instead of white flash
   if (isLoggingOut) {
-    return <SplashScreen />
+    return <LoadingScreen message="Signing out…" />
   }
 
-  // Initial session check (page refresh / first load). Show a minimal dark
-  // overlay that matches the app's colour scheme instead of a raw white div.
+  // Initial session check (page refresh / first load) — show branded screen
+  // instead of the raw black-background CSS spinner that was here before
   if (loading) {
-    return (
-      <div
-        style={{
-          position: 'fixed',
-          inset: 0,
-          background: '#090909',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-        }}
-      >
-        <div
-          style={{
-            width: 36,
-            height: 36,
-            border: '3px solid rgba(255,255,255,0.08)',
-            borderTopColor: 'rgba(255,255,255,0.55)',
-            borderRadius: '50%',
-            animation: 'spin 0.8s linear infinite',
-          }}
-        />
-        <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
-      </div>
-    )
+    return <LoadingScreen message="Checking session…" />
   }
 
   if (!user) {

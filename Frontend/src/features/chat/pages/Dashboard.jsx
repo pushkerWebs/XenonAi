@@ -10,7 +10,7 @@ import { resetChatState } from '../chat.slice';
 import { disconnectSocket } from '../service/chat.socket';
 
 const MODEL_OPTIONS = [
-  { value: 'gemini-flash-latest', label: 'Gemini Flash Latest' },
+  { value: 'gemini-1.5-flash', label: 'Gemini 1.5 Flash' },
   { value: 'mistral-small-latest', label: 'Mistral Small Latest' },
 ];
 
@@ -271,7 +271,7 @@ const Dashboard = () => {
   const [stoppedStreamingMessageIds, setStoppedStreamingMessageIds] = useState([]);
   const [isTypewriterStreaming, setIsTypewriterStreaming] = useState(false);
   const [activeStreamingMessageId, setActiveStreamingMessageId] = useState(null);
-  const [selectedModel, setSelectedModel] = useState('gemini-flash-latest');
+  const [selectedModel, setSelectedModel] = useState('gemini-1.5-flash');
   const [showDeleteChatDropdown, setShowDeleteChatDropdown] = useState(false);
   const [isAtBottom, setIsAtBottom] = useState(true);
   const [isMobileScreen, setIsMobileScreen] = useState(_isMobileInit);
@@ -830,7 +830,13 @@ const scrollToLatestMessage = useCallback(() => {
                     exit={{ opacity: 0, x: -20 }}
                     whileHover={{ x: 2, backgroundColor: isDarkMode ? 'rgba(55,65,81,0.5)' : 'rgba(243,244,246,0.8)' }}
                     onClick={() => openChat(chat.id)}
-                    className={`group px-2 py-2 rounded-lg cursor-pointer transition-all duration-200 ${currentChatId === chat.id ? (isDarkMode ? 'bg-gray-800 shadow-sm border border-gray-700' : 'bg-gray-100 shadow-sm border border-gray-200') : ''}`}
+                    className={`group px-2 py-2 rounded-lg cursor-pointer transition-all duration-200 ${
+                      (currentChatId === chat.id || currentChatId === chat._id)
+                        ? isDarkMode
+                          ? 'bg-gray-800 shadow-sm border border-gray-700'
+                          : 'border border-violet-400 bg-violet-50/60 shadow-sm'
+                        : 'border border-transparent'
+                    }`}
                   >
                     <div className="flex items-start justify-between gap-2">
                       <p className={`text-sm font-medium truncate ${theme.textPrimary} pr-2`}>

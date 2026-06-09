@@ -270,9 +270,12 @@ export async function requestPasswordReset(req, res) {
     const { email } = req.body;
     const normalizedEmail = String(email || "").toLowerCase().trim();
 
+    console.log(`🔑 Password reset requested for: ${normalizedEmail}`);
     const user = await userModel.findOne({ email: normalizedEmail });
 
     if (user) {
+      console.log(`   User found: ${user.username} (${user.email})`);
+
       const resetToken = crypto.randomBytes(32).toString("hex");
       const resetTokenHash = crypto.createHash("sha256").update(resetToken).digest("hex");
 
@@ -288,6 +291,10 @@ export async function requestPasswordReset(req, res) {
         username: user.username,
         resetUrl,
       });
+    } else {
+      // No user found — silently succeed (don't reveal whether email exists).
+      // Log so we can debug locally without exposing info to the client.
+      console.warn(`   No account found for: ${normalizedEmail} — skipping email send`);
     }
 
     return res.status(200).json({

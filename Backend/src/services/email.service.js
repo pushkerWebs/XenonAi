@@ -13,6 +13,21 @@ const transporter = nodemailer.createTransport({
   auth: smtpUser && smtpPass ? { user: smtpUser, pass: smtpPass } : undefined,
 });
 
+// Verify SMTP connection on startup so config errors surface immediately
+// instead of silently failing only when the first email is attempted.
+if (smtpHost && smtpUser && smtpPass) {
+  transporter.verify((err) => {
+    if (err) {
+      console.error("❌ SMTP connection failed:", err.message);
+      console.error("   Check SMTP_HOST, SMTP_PORT, SMTP_USER, SMTP_PASS in .env");
+    } else {
+      console.log("✅ SMTP connection verified — email service ready");
+    }
+  });
+} else {
+  console.warn("⚠️ SMTP not configured — password reset emails will not be sent");
+}
+
 function buildResetEmailHtml({ username, resetUrl }) {
   const safeName = username ? String(username).replace(/</g, "&lt;").replace(/>/g, "&gt;") : "there";
   return `<!DOCTYPE html>
@@ -51,10 +66,20 @@ export async function sendResetPasswordEmail({ to, username, resetUrl }) {
 
   const html = buildResetEmailHtml({ username, resetUrl });
 
-  await transporter.sendMail({
-    from: smtpFrom,
-    to,
-    subject: "Reset your Xenon password",
-    html,
-  });
+  console.log(`📧 Sending password reset email to: ${to}`);
+  console.log(`   SMTP: ${smtpUser} → ${smtpHost}:${smtpPort}`);
+  console.log(`   Reset URL: ${resetUrl}`);
+
+  try {
+    const info = await transporter.sendMail({
+      from: smtpFrom,
+      to,
+      subject: "Reset your Xenon password",
+      html,
+    });
+    console.log(`✅ Password reset email sent. Message ID: ${info.messageId}`);
+  } catch (err) {
+    console.error(`❌ Failed to send password reset email to ${to}:`, err.message);
+    throw err;   // re-throw so the controller can return a 500 instead of silent 200
+  }
 }

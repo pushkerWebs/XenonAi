@@ -1,4 +1,6 @@
-import { PDFParse } from "pdf-parse";
+import { createRequire } from "module";
+const require = createRequire(import.meta.url);
+const pdfParse = require("pdf-parse");
 
 // Max characters per individual file to keep total context manageable
 const MAX_CHARS_PER_FILE = 8000;
@@ -13,9 +15,8 @@ async function extractSingleFile(file) {
   // ── PDF ──────────────────────────────────────────────────────────────────
   if (mimetype === "application/pdf") {
     try {
-      const parser = new PDFParse({ data: buffer });
-      const parsed = await parser.getText();
-      const rawText = parsed?.text?.trim() || "";
+      const parsed = await pdfParse(buffer);
+      const rawText = (parsed?.text || "").trim();
       const truncated = rawText.length > MAX_CHARS_PER_FILE
         ? rawText.slice(0, MAX_CHARS_PER_FILE) + "\n\n[Document truncated — showing first ~8,000 characters]"
         : rawText;

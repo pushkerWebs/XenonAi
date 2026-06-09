@@ -8,11 +8,18 @@ import { ChatMistralAI } from "@langchain/mistralai";
 import { searchInternet } from "./internet.service.js";
 
 export const AI_MODELS = {
-  GEMINI: "gemini-flash-latest",
+  // gemini-1.5-flash is the confirmed multimodal/vision-capable model.
+  // "gemini-flash-latest" is NOT a valid API model ID and causes failures.
+  GEMINI: "gemini-1.5-flash",
   MISTRAL: "mistral-small-latest",
 };
 
+// Separate vision model instance — always Gemini 1.5 Flash regardless of the
+// user's text model selection. Images are silently dropped by Mistral.
+const GEMINI_VISION_MODEL_ID = "gemini-1.5-flash";
+
 let geminiModel;
+let geminiVisionModel;
 let mistralModel;
 
 const getGeminiModel = () => {
@@ -28,6 +35,23 @@ const getGeminiModel = () => {
   }
 
   return geminiModel;
+};
+
+// Always returns a Gemini vision-capable model, regardless of user selection.
+const getGeminiVisionModel = () => {
+  if (!process.env.GEMINI_API_KEY) {
+    throw new Error("Missing GEMINI_API_KEY environment variable");
+  }
+
+  if (!geminiVisionModel) {
+    geminiVisionModel = new ChatGoogleGenerativeAI({
+      model: GEMINI_VISION_MODEL_ID,
+      apiKey: process.env.GEMINI_API_KEY,
+    });
+    console.log(`🔭 Gemini vision model initialised: ${GEMINI_VISION_MODEL_ID}`);
+  }
+
+  return geminiVisionModel;
 };
 
 const getMistralModel = () => {
@@ -74,7 +98,7 @@ const getFallbackModel = (selectedModel) => {
 };
 
 // Helper to safely invoke a model with fallback
-async function safeInvoke(messages, selectedModel, timeoutMs) {
+async function safeInvoke(messages, selectedModel, timeoutMs, hasImages = false) {
   const primary = pickModel(selectedModel);
   const fallback = getFallbackModel(selectedModel);
 
@@ -88,6 +112,14 @@ async function safeInvoke(messages, selectedModel, timeoutMs) {
   } catch (primaryError) {
     const isRateLimit = primaryError?.status === 429 || /429|quota|rate.?limit/i.test(primaryError?.message || "");
     console.warn(`⚠️ Primary model (${primary.name}) failed${isRateLimit ? " (RATE LIMITED)" : ""}:`, primaryError.message);
+
+    // Mistral does not support vision — never fall back to it for image requests.
+    // Falling back would send base64 image data to a text-only model and produce
+    // garbage output or another error.
+    if (hasImages) {
+      console.error("❌ Gemini vision call failed. Mistral has no vision support — skipping fallback.");
+      throw primaryError;
+    }
 
     try {
       const result = await withTimeout(
@@ -132,11 +164,15 @@ function buildImageContent(lastMessageContent, imageDocuments, textDocuments) {
     });
   }
 
-  // Add each image
+  // Add each image using the native Google GenAI 'media' format.
+  // The OpenAI-compatible 'image_url' type requires the adapter to transform
+  // the data URI which can silently fail. 'media' is the documented format
+  // for @langchain/google-genai and works reliably.
   for (const img of imageDocuments) {
     parts.push({
-      type: "image_url",
-      image_url: `data:${img.mimeType};base64,${img.imageBase64}`,
+      type: "media",
+      data: img.imageBase64,       // raw base64 string, no "data:..." prefix
+      mimeType: img.mimeType,      // e.g. "image/jpeg", "image/png"
     });
   }
 
@@ -407,15 +443,18 @@ FORMATTING RULES (ALWAYS FOLLOW):
     }
 
     // ── Format messages for LangChain ─────────────────────────────────────
+    // When images are present ALWAYS use the Gemini vision model — Mistral
+    // cannot process images, and the user's model selection is ignored for
+    // multimodal requests to prevent silent image drops.
+    const effectiveModel = imageDocs.length > 0 ? GEMINI_VISION_MODEL_ID : selectedModel;
+
     const formattedMessages = messages
       .map((msg, idx) => {
         if (msg.role === "user") {
-          // For the LAST user message with images, inject multimodal content (Gemini only)
-          if (
-            idx === messages.length - 1 &&
-            imageDocs.length > 0 &&
-            selectedModel === AI_MODELS.GEMINI
-          ) {
+          // For the LAST user message, inject multimodal content when images exist.
+          // No model check needed — we already forced the vision model above.
+          if (idx === messages.length - 1 && imageDocs.length > 0) {
+            console.log(`🖼️ Building multimodal message with ${imageDocs.length} image(s) for Gemini vision`);
             return new HumanMessage({
               content: buildImageContent(msg.content, imageDocs, textDocs),
             });
@@ -429,11 +468,32 @@ FORMATTING RULES (ALWAYS FOLLOW):
       })
       .filter(Boolean);
 
-    const { result: response, modelUsed, wasFallback, rateLimited } = await safeInvoke(
-      [new SystemMessage(systemPrompt), ...formattedMessages],
-      selectedModel,
-      MODEL_TIMEOUT_MS
-    );
+    // For image requests, bypass pickModel/safeInvoke and call the vision model directly.
+    let response, modelUsed, wasFallback, rateLimited;
+    if (imageDocs.length > 0) {
+      const visionModel = getGeminiVisionModel();
+      console.log(`🔭 Sending image request to vision model: ${GEMINI_VISION_MODEL_ID}`);
+      const raw = await withTimeout(
+        visionModel.invoke([new SystemMessage(systemPrompt), ...formattedMessages]),
+        MODEL_TIMEOUT_MS,
+        "Vision model timed out"
+      );
+      response = raw;
+      modelUsed = GEMINI_VISION_MODEL_ID;
+      wasFallback = false;
+      rateLimited = false;
+    } else {
+      const invoked = await safeInvoke(
+        [new SystemMessage(systemPrompt), ...formattedMessages],
+        effectiveModel,
+        MODEL_TIMEOUT_MS,
+        false
+      );
+      response = invoked.result;
+      modelUsed = invoked.modelUsed;
+      wasFallback = invoked.wasFallback;
+      rateLimited = invoked.rateLimited;
+    }
 
     const result = extractText(response);
     return {
@@ -443,9 +503,28 @@ FORMATTING RULES (ALWAYS FOLLOW):
       rateLimited,
     };
   } catch (error) {
+    // Log the full stack — previously only .message was logged which hid the
+    // actual crash location (e.g. PDFParse constructor, image_url format, etc.)
     console.error("❌ AI Error:", error.message);
+    console.error("   Stack:", error.stack);
+
+    // Return a context-aware error message instead of the generic fallback
+    const msg = error.message || "";
+    let userText = "Something went wrong. Please try again.";
+    if (/pdf|parse|corrupt|password/i.test(msg)) {
+      userText = "❌ PDF extraction failed. The file may be corrupted or password-protected.";
+    } else if (/image|vision|base64|multimodal/i.test(msg)) {
+      userText = "❌ Image processing failed. Please try a different image or ask a text-only question.";
+    } else if (/timed out/i.test(msg)) {
+      userText = "⏱️ The AI took too long to respond. Please try again in a moment.";
+    } else if (/quota|rate.?limit|429/i.test(msg)) {
+      userText = "⚠️ AI rate limit reached. Please wait a moment and try again.";
+    } else if (/unsupported file/i.test(msg)) {
+      userText = "❌ Unsupported file type. Please upload a PDF, TXT, or image file.";
+    }
+
     return {
-      text: "Something went wrong. Please try again.",
+      text: userText,
       modelUsed: "unknown",
       wasFallback: false,
       rateLimited: false,
