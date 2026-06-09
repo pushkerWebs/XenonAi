@@ -149,17 +149,88 @@ function shouldSearchInternet(query) {
   }
 
   const normalizedQuery = String(query || "").toLowerCase().trim();
-  if (!normalizedQuery) {
+  if (!normalizedQuery || normalizedQuery.length <= 3) {
     return false;
   }
 
-  const alwaysSearchPatterns = [
-    /\b(latest|current|today|news|breaking|price|weather|score|results?|update|recent|now)\b/,
-    /\b(compare|review|rank|stat(s|istics)?|forecast|forecasts|population|exchange rate|currency|stock|crypt(o|ocurrency))\b/,
-    /\b(2024|2025|2026)\b/,
+  // Only search for genuinely time-sensitive or live-data queries.
+  // Everything else ("what is X", "explain Y") goes straight to the AI
+  // — it's faster and avoids burning Tavily quota on knowledge questions.
+  const timeSensitivePatterns = [
+    /\b(latest|breaking|live|ongoing|right now|as of today|this week|this month|this year)\b/,
+    /\b(today'?s?|tonight'?s?|yesterday'?s?|current|just announced|just released)\b/,
+    /\b(news|headlines|update|score|weather|forecast|traffic)\b/,
+    /\b(stock price|share price|crypto price|bitcoin price|exchange rate|market cap)\b/,
+    /\b(who won|who is winning|match result|final score|election result)\b/,
+    /\b(202[4-9]|2030)\b/,  // recent/future years only
   ];
 
-  return alwaysSearchPatterns.some((pattern) => pattern.test(normalizedQuery));
+  // Tier 2: Time-dependent factual queries — answers exist but go stale
+  // (release dates, OTT availability, box office, upcoming events, etc.)
+  const staleableFactPatterns = [
+    /\b(release date|released|releasing|when (is|was|does|will|did))\b/,
+    /\b(out now|is it out|already out|in theaters|now streaming|now playing)\b/,
+    /\b(available on|streaming on|where to watch|which platform|ott)\b/,
+    /\b(box office|collection|gross|earned|made how much)\b/,
+    /\b(trailer|teaser|official trailer|dropped|reveal)\b/,
+    /\b(cast|starring|who plays|who played|who is playing)\b/,
+    /\b(season \d|episode \d|renewed|cancelled|canceled|next season)\b/,
+    /\b(upcoming|scheduled|confirmed|announced|premiere)\b/,
+  ];
+
+  // Tier 3: Tech & product queries — versions, prices, specs, comparisons, launches.
+  // Gemini's training data goes stale on these very quickly.
+  const techProductPatterns = [
+    // Version / release queries
+    /\b(latest version|newest version|current version|stable version|lts version)\b/,
+    /\b(version of (python|node|react|angular|vue|django|flutter|kotlin|swift|rust|go|java|android|ios|windows|macos|linux|ubuntu|chrome|firefox|safari))\b/,
+
+    // Pricing
+    /\b(price of|cost of|how much (does|is|costs?)|msrp|starting price|retail price)\b/,
+    /\b(under \d{3,6}|below \d{3,6}|budget (phone|laptop|tablet|pc|gpu|cpu))\b/,
+
+    // Device specs & comparisons
+    /\b(specs( of)?|specifications|benchmark|performance of|review of)\b/,
+    /\b(vs|versus|compare|comparison|better than|difference between).{0,40}(phone|laptop|tablet|gpu|cpu|chip|processor|camera|battery)\b/,
+
+    // Best-of / recommendation queries
+    /\b(best (phone|laptop|tablet|smartwatch|gpu|cpu|ssd|router|monitor|headphone|earphone|keyboard|mouse|gaming))\b/,
+    /\b(top \d+ (phones?|laptops?|tablets?|gpus?|cpus?|ssds?))\b/,
+    /\b(which (phone|laptop|tablet|gpu|cpu) (should i|to buy|is worth))\b/,
+
+    // Brand-specific product launches
+    /\b(iphone \d{1,2}|samsung galaxy (s|a|z|m)\d{1,2}|pixel \d{1}|oneplus \d{1,2}|realme \d{1,2}|redmi (note )?\d{1,2})\b/,
+    /\b(macbook|ipad|apple watch|airpods|m\d (chip|pro|max|ultra))\b/,
+    /\b(rtx \d{4}|rx \d{4}|snapdragon \d{3,4}|dimensity \d{3,4}|exynos \d{4}|a\d{2} (chip|bionic))\b/,
+
+    // Software / OS / Platform
+    /\b(windows \d{2}|android \d{1,2}|ios \d{1,2}|macos \w+|ubuntu \d{2})\b/,
+    /\b(gpt-\d|claude \d|gemini (pro|ultra|flash|nano)|llama \d|mistral \w+)\b/,
+    /\b(chatgpt|gemini|copilot|claude|perplexity|midjourney|stable diffusion|dall-?e)\b/,
+
+    // Company leadership & status (changes frequently)
+    /\b(ceo of|cto of|founder of|who (leads?|runs?|heads?|owns?|founded))\b/,
+    /\b(acquired by|merger|acquisition|partnership between|deal between)\b/,
+    /\b(openai|google deepmind|anthropic|mistral ai|meta ai|apple intelligence|microsoft copilot)\b/,
+
+    // App / service availability
+    /\b(is .{1,30} (available|working|down|offline|free))\b/,
+    /\b(app (update|version|download|install)|plugin|extension for)\b/,
+  ];
+
+  if (timeSensitivePatterns.some((p) => p.test(normalizedQuery))) {
+    return true;
+  }
+
+  if (staleableFactPatterns.some((p) => p.test(normalizedQuery))) {
+    return true;
+  }
+
+  if (techProductPatterns.some((p) => p.test(normalizedQuery))) {
+    return true;
+  }
+
+  return false;
 }
 
 export async function generateResponse(
@@ -168,18 +239,12 @@ export async function generateResponse(
   documentContexts = null   // { documents: Array, hasImages: boolean } | null
 ) {
   try {
+    // Use the latest user message as-is for the search query.
+    // The full conversation history already provides all the context the AI needs;
+    // mangling the query by prepending the previous message caused the AI to
+    // answer old questions instead of the one the user just asked.
     const lastMsg = messages[messages.length - 1];
-    const prevMsg = messages[messages.length - 2];
-
     let finalQuery = lastMsg?.content || "";
-
-    if (
-      lastMsg?.role === "user" &&
-      lastMsg.content.split(" ").length <= 2 &&
-      prevMsg
-    ) {
-      finalQuery = `${prevMsg.content} ${lastMsg.content}`.trim();
-    }
 
     // Skip internet search when documents are attached — they are the primary context
     let searchResults = "";

@@ -39,10 +39,27 @@ export async function googleLogin(req, res) {
     let user = await userModel.findOne({ email });
 
     if (!user) {
-      return res.status(404).json({
-        success: false,
-        message: "Create user first",
+      // Auto-create account for first-time Google sign-in.
+      // Build a URL-safe base username from the Google display name or email prefix.
+      const baseUsername = (name || email.split("@")[0])
+        .replace(/\s+/g, "_")
+        .toLowerCase();
+
+      // Retry with a random 4-digit suffix until we find a free username.
+      let username = baseUsername;
+      let attempts = 0;
+      while (await userModel.exists({ username })) {
+        const suffix = Math.floor(1000 + Math.random() * 9000); // 1000-9999
+        username = `${baseUsername}_${suffix}`;
+        if (++attempts > 10) { username = `${baseUsername}_${Date.now()}`; break; }
+      }
+
+      user = await userModel.create({
+        email,
+        username,
+        avatar: resolvedAvatar,
       });
+      console.log("New Google user created:", user.email, "→ username:", user.username);
     } else if (resolvedAvatar && user.avatar !== resolvedAvatar) {
       user.avatar = resolvedAvatar;
       await user.save();

@@ -276,6 +276,7 @@ const Dashboard = () => {
   const [isAtBottom, setIsAtBottom] = useState(true);
   const [isMobileScreen, setIsMobileScreen] = useState(_isMobileInit);
   const user = useSelector((state) => state.auth.user);
+  const userId = user?._id || user?.id;
   const chats = useSelector((state) => state.chat.chats);
   const currentChatId = useSelector((state) => state.chat.currentChatId);
   const currentMessages = useMemo(() => chats[currentChatId]?.messages || [], [chats, currentChatId]);
@@ -323,10 +324,13 @@ const Dashboard = () => {
     return () => window.removeEventListener('resize', handleResize);
   }, [isSidebarOpen]);
 
+  // Re-fetch chats whenever the authenticated user changes (covers first open,
+  // page refresh, and the case where handleGetMe finishes after Dashboard mounts).
   useEffect(() => {
+    if (!userId) return;
     initializeSocketConnection();
     handleGetChats();
-  }, [initializeSocketConnection, handleGetChats]);
+  }, [userId, initializeSocketConnection, handleGetChats]);
 
  
  

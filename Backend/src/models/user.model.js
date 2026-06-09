@@ -18,7 +18,7 @@ const userSchema = new mongoose.Schema(
     },
     password: {
       type: String,
-      required: true,
+      required: false,   // Google users have no password
       minlength: 6,
     },
     avatar: {
@@ -43,13 +43,14 @@ const userSchema = new mongoose.Schema(
 );
 
 userSchema.pre("save", async function () {
-  if (!this.isModified("password")) return ;
+  if (!this.isModified("password") || !this.password) return;
   this.password = await bcrypt.hash(this.password, 10);
 });
 
 
-userSchema.methods.comparePassword = function(candidatePassword){
-    return bcrypt.compare(candidatePassword,this.password)
+userSchema.methods.comparePassword = function(candidatePassword) {
+    if (!this.password) return Promise.resolve(false);
+    return bcrypt.compare(candidatePassword, this.password);
 }
 
 const userModel = mongoose.model('User',userSchema)

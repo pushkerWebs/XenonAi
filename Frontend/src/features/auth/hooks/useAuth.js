@@ -89,11 +89,11 @@ export function useAuth() {
             persistUser(data.user)
             return true
         } catch {
-            const storedUser = typeof window === "undefined" ? null : window.localStorage.getItem("xenonAuthUser")
-            if (!storedUser) {
-                dispatch(setUser(null))
-                persistUser(null)
-            }
+            // Session check failed (cookie expired or invalid) — always clear the
+            // stale user so Protected redirects to login instead of leaving the
+            // user in a broken state where API calls silently fail.
+            dispatch(setUser(null))
+            persistUser(null)
             return false
         } finally {
             dispatch(setLoading(false))
