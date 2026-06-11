@@ -8,15 +8,14 @@ import { ChatMistralAI } from "@langchain/mistralai";
 import { searchInternet } from "./internet.service.js";
 
 export const AI_MODELS = {
-  // gemini-1.5-flash is the confirmed multimodal/vision-capable model.
-  // "gemini-flash-latest" is NOT a valid API model ID and causes failures.
-  GEMINI: "gemini-1.5-flash",
+  // Gemini 2.5 Flash is the current multimodal/vision-capable model.
+  GEMINI: "gemini-2.5-flash",
   MISTRAL: "mistral-small-latest",
 };
 
-// Separate vision model instance — always Gemini 1.5 Flash regardless of the
+// Separate vision model instance — always Gemini 2.5 Flash regardless of the
 // user's text model selection. Images are silently dropped by Mistral.
-const GEMINI_VISION_MODEL_ID = "gemini-1.5-flash";
+const GEMINI_VISION_MODEL_ID = "gemini-2.5-flash";
 
 let geminiModel;
 let geminiVisionModel;

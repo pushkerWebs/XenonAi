@@ -13,11 +13,7 @@ const Protected = ({ children }) => {
     return <LoadingScreen message="Signing out…" />
   }
 
-  // Initial session check (page refresh / first load) — show branded screen
-  // instead of the raw black-background CSS spinner that was here before
-  if (loading) {
-    return <LoadingScreen message="Checking session…" />
-  }
+  // Initial session check handled by the first animation; no extra loading screen here
 
   if (!user) {
     return <Navigate to="/login" replace />
