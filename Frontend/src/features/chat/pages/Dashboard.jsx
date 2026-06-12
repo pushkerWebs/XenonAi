@@ -10,7 +10,9 @@ import { resetChatState } from '../chat.slice';
 import { disconnectSocket } from '../service/chat.socket';
 
 const MODEL_OPTIONS = [
-  { value: 'gemini-1.5-flash', label: 'Gemini 1.5 Flash' },
+  { value: 'gemini-2.0-flash', label: 'Gemini 2.0 Flash' },
+  { value: 'gemini-2.0-flash-lite', label: 'Gemini 2.0 Flash Lite' },
+  { value: 'gemini-2.5-pro', label: 'Gemini 2.5 Pro' },
   { value: 'mistral-small-latest', label: 'Mistral Small Latest' },
 ];
 
@@ -271,7 +273,7 @@ const Dashboard = () => {
   const [stoppedStreamingMessageIds, setStoppedStreamingMessageIds] = useState([]);
   const [isTypewriterStreaming, setIsTypewriterStreaming] = useState(false);
   const [activeStreamingMessageId, setActiveStreamingMessageId] = useState(null);
-  const [selectedModel, setSelectedModel] = useState('gemini-1.5-flash');
+  const [selectedModel, setSelectedModel] = useState('gemini-2.0-flash');
   const [showDeleteChatDropdown, setShowDeleteChatDropdown] = useState(false);
   const [isAtBottom, setIsAtBottom] = useState(true);
   const [isMobileScreen, setIsMobileScreen] = useState(_isMobileInit);

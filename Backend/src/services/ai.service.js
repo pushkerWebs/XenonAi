@@ -8,32 +8,44 @@ import { ChatMistralAI } from "@langchain/mistralai";
 import { searchInternet } from "./internet.service.js";
 
 export const AI_MODELS = {
-  // Gemini 2.5 Flash is the current multimodal/vision-capable model.
-  GEMINI: "gemini-2.5-flash",
+  GEMINI: "gemini-2.0-flash", // Default compatibility alias
+  GEMINI_2_0_FLASH: "gemini-2.0-flash",
+  GEMINI_2_0_FLASH_LITE: "gemini-2.0-flash-lite",
+  GEMINI_2_5_PRO: "gemini-2.5-pro",
   MISTRAL: "mistral-small-latest",
 };
 
-// Separate vision model instance — always Gemini 2.5 Flash regardless of the
+// Separate vision model instance — always Gemini 2.0 Flash regardless of the
 // user's text model selection. Images are silently dropped by Mistral.
-const GEMINI_VISION_MODEL_ID = "gemini-2.5-flash";
+const GEMINI_VISION_MODEL_ID = "gemini-2.0-flash";
 
-let geminiModel;
+const geminiModels = {};
 let geminiVisionModel;
 let mistralModel;
 
-const getGeminiModel = () => {
+const getGeminiModel = (modelId = AI_MODELS.GEMINI_2_0_FLASH) => {
   if (!process.env.GEMINI_API_KEY) {
     throw new Error("Missing GEMINI_API_KEY environment variable");
   }
 
-  if (!geminiModel) {
-    geminiModel = new ChatGoogleGenerativeAI({
-      model: AI_MODELS.GEMINI,
+  // Validate or fallback to default Gemini model ID
+  const validGeminiIds = [
+    AI_MODELS.GEMINI,
+    "gemini-2.5-flash", // support old database entries
+    AI_MODELS.GEMINI_2_0_FLASH,
+    AI_MODELS.GEMINI_2_0_FLASH_LITE,
+    AI_MODELS.GEMINI_2_5_PRO,
+  ];
+  const targetId = validGeminiIds.includes(modelId) ? modelId : AI_MODELS.GEMINI_2_0_FLASH;
+
+  if (!geminiModels[targetId]) {
+    geminiModels[targetId] = new ChatGoogleGenerativeAI({
+      model: targetId,
       apiKey: process.env.GEMINI_API_KEY,
     });
   }
 
-  return geminiModel;
+  return geminiModels[targetId];
 };
 
 // Always returns a Gemini vision-capable model, regardless of user selection.
@@ -85,12 +97,12 @@ const pickModel = (selectedModel) => {
     return { model: getMistralModel(), name: AI_MODELS.MISTRAL };
   }
 
-  return { model: getGeminiModel(), name: AI_MODELS.GEMINI };
+  return { model: getGeminiModel(selectedModel), name: selectedModel };
 };
 
 const getFallbackModel = (selectedModel) => {
   if (selectedModel === AI_MODELS.MISTRAL || !process.env.MISTRAL_API_KEY) {
-    return { model: getGeminiModel(), name: AI_MODELS.GEMINI };
+    return { model: getGeminiModel(AI_MODELS.GEMINI_2_0_FLASH), name: AI_MODELS.GEMINI_2_0_FLASH };
   }
 
   return { model: getMistralModel(), name: AI_MODELS.MISTRAL };
@@ -445,7 +457,8 @@ FORMATTING RULES (ALWAYS FOLLOW):
     // When images are present ALWAYS use the Gemini vision model — Mistral
     // cannot process images, and the user's model selection is ignored for
     // multimodal requests to prevent silent image drops.
-    const effectiveModel = imageDocs.length > 0 ? GEMINI_VISION_MODEL_ID : selectedModel;
+    const isSelectedModelGemini = selectedModel && selectedModel.startsWith("gemini-");
+    const effectiveModel = (imageDocs.length > 0 && !isSelectedModelGemini) ? GEMINI_VISION_MODEL_ID : selectedModel;
 
     const formattedMessages = messages
       .map((msg, idx) => {
@@ -470,15 +483,16 @@ FORMATTING RULES (ALWAYS FOLLOW):
     // For image requests, bypass pickModel/safeInvoke and call the vision model directly.
     let response, modelUsed, wasFallback, rateLimited;
     if (imageDocs.length > 0) {
-      const visionModel = getGeminiVisionModel();
-      console.log(`🔭 Sending image request to vision model: ${GEMINI_VISION_MODEL_ID}`);
+      const visionModelId = (selectedModel && selectedModel.startsWith("gemini-")) ? selectedModel : GEMINI_VISION_MODEL_ID;
+      const visionModel = getGeminiModel(visionModelId);
+      console.log(`🔭 Sending image request to vision model: ${visionModelId}`);
       const raw = await withTimeout(
         visionModel.invoke([new SystemMessage(systemPrompt), ...formattedMessages]),
         MODEL_TIMEOUT_MS,
         "Vision model timed out"
       );
       response = raw;
-      modelUsed = GEMINI_VISION_MODEL_ID;
+      modelUsed = visionModelId;
       wasFallback = false;
       rateLimited = false;
     } else {
